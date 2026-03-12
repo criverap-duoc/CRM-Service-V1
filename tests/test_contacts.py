@@ -3,7 +3,7 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from apps.contacts.models import Contact
-
+from django.contrib.auth.models import Group
 
 @pytest.fixture
 def api_client():
@@ -97,11 +97,10 @@ class TestContactsCRUD:
         assert res.status_code == 200
         assert res.data["company"] == "ACME Corp"
 
-    def test_delete_contact(self, auth_client, contact):
+    def test_delete_contact(self, auth_client, contact, db):
+        # Los agentes no pueden eliminar — esperamos 403
         res = auth_client.delete(f"/api/v1/contacts/{contact.pk}/")
-        assert res.status_code == 204
-        assert not Contact.objects.filter(pk=contact.pk).exists()
-
+        assert res.status_code == 403
 
 @pytest.mark.django_db
 class TestContactActions:
@@ -141,3 +140,79 @@ class TestContactFiltering:
         res = auth_client.get("/api/v1/contacts/?search=ana@example")
         assert res.status_code == 200
         assert res.data["count"] == 1
+
+@pytest.fixture
+def manager_user(db):
+    user = User.objects.create_user(username="manager", password="pass1234")
+    group, _ = Group.objects.get_or_create(name="managers")
+    user.groups.add(group)
+    return user
+
+
+@pytest.fixture
+def manager_client(api_client, manager_user):
+    res = api_client.post(
+        "/api/v1/auth/token/",
+        {"username": "manager", "password": "pass1234"},
+        format="json",
+    )
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
+    return api_client
+
+
+@pytest.mark.django_db
+class TestPermisos:
+    def test_agente_no_ve_contactos_de_otro(self, auth_client, db):
+        # Crear otro usuario con su propio contacto
+        otro = User.objects.create_user(username="otro", password="pass1234")
+        Contact.objects.create(
+            first_name="Ajeno",
+            last_name="Contacto",
+            email="ajeno@example.com",
+            assigned_to=otro,
+        )
+        res = auth_client.get("/api/v1/contacts/")
+        assert res.status_code == 200
+        # El agente no debe ver el contacto del otro usuario
+        emails = [c["email"] for c in res.data["results"]]
+        assert "ajeno@example.com" not in emails
+
+    def test_manager_ve_todos_los_contactos(self, manager_client, db):
+        # Crear dos contactos de usuarios distintos
+        u1 = User.objects.create_user(username="u1", password="pass1234")
+        u2 = User.objects.create_user(username="u2", password="pass1234")
+        Contact.objects.create(first_name="A", last_name="A", email="a@example.com", assigned_to=u1)
+        Contact.objects.create(first_name="B", last_name="B", email="b@example.com", assigned_to=u2)
+
+        res = manager_client.get("/api/v1/contacts/")
+        assert res.status_code == 200
+        assert res.data["count"] == 2
+
+    def test_agente_no_puede_eliminar(self, auth_client, contact):
+        res = auth_client.delete(f"/api/v1/contacts/{contact.pk}/")
+        assert res.status_code == 403
+
+    def test_manager_puede_eliminar(self, manager_client, db):
+        u = User.objects.create_user(username="u3", password="pass1234")
+        c = Contact.objects.create(
+            first_name="Para", last_name="Borrar",
+            email="borrar@example.com", assigned_to=u
+        )
+        res = manager_client.delete(f"/api/v1/contacts/{c.pk}/")
+        assert res.status_code == 204
+
+    def test_manager_puede_reasignar(self, manager_client, db):
+        u1 = User.objects.create_user(username="u4", password="pass1234")
+        u2 = User.objects.create_user(username="u5", password="pass1234")
+        c = Contact.objects.create(
+            first_name="Reasignar", last_name="Me",
+            email="reasignar@example.com", assigned_to=u1
+        )
+        res = manager_client.patch(
+            f"/api/v1/contacts/{c.pk}/assign/",
+            {"assigned_to_id": u2.pk},
+            format="json",
+        )
+        assert res.status_code == 200
+        c.refresh_from_db()
+        assert c.assigned_to == u2

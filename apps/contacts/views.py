@@ -2,13 +2,13 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from .models import Contact
 from .serializers import ContactSerializer, ContactListSerializer
 from .filters import ContactFilter
+from .permissions import IsManager, IsAgentOrManager
 
 
 @extend_schema_view(
@@ -20,18 +20,31 @@ from .filters import ContactFilter
     destroy=extend_schema(summary="Delete contact", tags=["Contacts"]),
 )
 class ContactViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
     filterset_class = ContactFilter
     search_fields = ["first_name", "last_name", "email", "company"]
     ordering_fields = ["created_at", "updated_at", "last_name", "status"]
     ordering = ["-created_at"]
 
+    def get_permissions(self):
+        """
+        - Eliminar y reasignar: solo managers
+        - Todo lo demás: agentes y managers (con restricción por objeto)
+        """
+        if self.action in ["destroy", "change_assigned"]:
+            return [IsManager()]
+        return [IsAgentOrManager()]
+
     def get_queryset(self):
-        return (
+        user = self.request.user
+        base_qs = (
             Contact.objects.select_related("assigned_to")
             .annotate(interaction_count=Count("interactions"))
-            .all()
         )
+        # Managers ven todos los contactos
+        if user.is_superuser or user.groups.filter(name="managers").exists():
+            return base_qs.all()
+        # Agentes solo ven los suyos
+        return base_qs.filter(assigned_to=user)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -57,7 +70,7 @@ class ContactViewSet(viewsets.ModelViewSet):
 
         if new_status not in Contact.Status.values:
             return Response(
-                {"error": {"code": "validation_error", "message": f"Invalid status '{new_status}'."}},
+                {"error": {"code": "validation_error", "message": f"Estado inválido: '{new_status}'."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -79,4 +92,29 @@ class ContactViewSet(viewsets.ModelViewSet):
             serializer = ContactListSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = ContactListSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        summary="Reasignar contacto (solo managers)",
+        request={"application/json": {"type": "object", "properties": {"assigned_to_id": {"type": "integer"}}}},
+        responses={200: ContactSerializer},
+        tags=["Contacts"],
+    )
+    @action(detail=True, methods=["patch"], url_path="assign")
+    def change_assigned(self, request, pk=None):
+        contact = self.get_object()
+        from django.contrib.auth.models import User
+
+        user_id = request.data.get("assigned_to_id")
+        try:
+            agent = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "not_found", "message": f"Usuario {user_id} no existe."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        contact.assigned_to = agent
+        contact.save(update_fields=["assigned_to", "updated_at"])
+        serializer = ContactSerializer(contact, context={"request": request})
         return Response(serializer.data)
