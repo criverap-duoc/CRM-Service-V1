@@ -1,0 +1,9 @@
+django
+djangorestframework
+djangorestframework-simplejwt
+django-filter
+drf-spectacular
+python-decouple
+httpx
+pytest
+pytest-django

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Django
+db.sqlite3
+*.log
+staticfiles/
+
+# Variables de entorno
+.env
+
+# Pytest
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
