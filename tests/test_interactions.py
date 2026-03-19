@@ -105,3 +105,11 @@ class TestMetaWebhook:
         api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
         api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
         assert Contact.objects.filter(email="idempotent@meta.com").count() == 1
+
+@pytest.mark.django_db
+class TestHealthCheck:
+    def test_health_ok(self, api_client):
+        res = api_client.get("/health/")
+        assert res.status_code == 200
+        assert res.data["status"] == "ok"
+        assert res.data["database"] == "ok"
