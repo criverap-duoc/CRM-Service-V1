@@ -77,6 +77,16 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "crm_service.exceptions.custom_exception_handler",
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",       # usuarios no autenticados
+        "user": "1000/day",      # usuarios autenticados
+        "webhook": "200/hour",   # tasa específica para webhooks
+    },
 }
 
 SIMPLE_JWT = {

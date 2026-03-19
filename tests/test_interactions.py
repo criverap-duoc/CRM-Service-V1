@@ -113,3 +113,20 @@ class TestHealthCheck:
         assert res.status_code == 200
         assert res.data["status"] == "ok"
         assert res.data["database"] == "ok"
+
+@pytest.mark.django_db
+class TestRateLimiting:
+    def test_webhook_acepta_requests_normales(self, api_client):
+        payload = {"email": "rate@test.com", "first_name": "Rate", "last_name": "Test"}
+        res = api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
+        assert res.status_code == 200
+
+    def test_auth_endpoint_no_requiere_token(self, api_client):
+        """El endpoint de token es público y no debe devolver 401."""
+        res = api_client.post(
+            "/api/v1/auth/token/",
+            {"username": "noexiste", "password": "mal"},
+            format="json",
+        )
+        # 401 por credenciales incorrectas, no por falta de token
+        assert res.status_code == 401

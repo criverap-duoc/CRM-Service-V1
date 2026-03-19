@@ -1,9 +1,9 @@
-## crm_service\apps\integrations\views.py
 import logging
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
 
@@ -19,8 +19,13 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+class WebhookRateThrottle(AnonRateThrottle):
+    scope = "webhook"
+
+
 class MetaWebhookView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [WebhookRateThrottle]
 
     @extend_schema(
         summary="Meta Lead Ads webhook",
