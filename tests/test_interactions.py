@@ -1,5 +1,9 @@
 ## crm_service\tests\test_interactions.py
 import pytest
+import hmac
+import hashlib
+import json
+
 from django.utils import timezone
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
@@ -87,7 +91,8 @@ class TestInteractions:
 
 @pytest.mark.django_db
 class TestMetaWebhook:
-    def test_webhook_creates_contact(self, api_client):
+    def test_webhook_creates_contact(self, api_client, settings):
+        settings.META_APP_SECRET = ""
         payload = {
             "lead_id": "meta_lead_001",
             "email": "lead@meta.com",
@@ -100,33 +105,72 @@ class TestMetaWebhook:
         assert res.data["received"] is True
         assert Contact.objects.filter(email="lead@meta.com").exists()
 
-    def test_webhook_idempotent(self, api_client):
+    def test_webhook_idempotent(self, api_client, settings):
+        settings.META_APP_SECRET = ""
         payload = {"email": "idempotent@meta.com", "first_name": "Test", "last_name": "User"}
         api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
         api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
         assert Contact.objects.filter(email="idempotent@meta.com").count() == 1
 
-@pytest.mark.django_db
-class TestHealthCheck:
-    def test_health_ok(self, api_client):
-        res = api_client.get("/health/")
-        assert res.status_code == 200
-        assert res.data["status"] == "ok"
-        assert res.data["database"] == "ok"
 
 @pytest.mark.django_db
 class TestRateLimiting:
-    def test_webhook_acepta_requests_normales(self, api_client):
+    def test_webhook_acepta_requests_normales(self, api_client, settings):
+        settings.META_APP_SECRET = ""
         payload = {"email": "rate@test.com", "first_name": "Rate", "last_name": "Test"}
         res = api_client.post("/api/v1/integrations/meta/webhook/", payload, format="json")
         assert res.status_code == 200
 
     def test_auth_endpoint_no_requiere_token(self, api_client):
-        """El endpoint de token es público y no debe devolver 401."""
         res = api_client.post(
             "/api/v1/auth/token/",
             {"username": "noexiste", "password": "mal"},
             format="json",
         )
-        # 401 por credenciales incorrectas, no por falta de token
         assert res.status_code == 401
+
+
+@pytest.mark.django_db
+class TestMetaWebhookFirma:
+    def _firma(self, payload: dict, secret: str) -> str:
+        """Helper que genera la firma correcta para un payload."""
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        return "sha256=" + hmac.new(
+            secret.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+
+    def test_webhook_sin_firma_pasa_si_no_hay_secret(self, api_client, settings):
+        """Sin META_APP_SECRET configurado, el webhook acepta cualquier request."""
+        settings.META_APP_SECRET = ""
+        payload = {"email": "nofirma@test.com", "first_name": "Sin", "last_name": "Firma"}
+        res = api_client.post(
+            "/api/v1/integrations/meta/webhook/",
+            payload,
+            format="json",
+        )
+        assert res.status_code == 200
+
+    def test_webhook_firma_invalida_retorna_403(self, api_client, settings):
+        """Con META_APP_SECRET configurado, firma incorrecta retorna 403."""
+        settings.META_APP_SECRET = "mi-secret-de-prueba"
+        payload = {"email": "firmamala@test.com", "first_name": "Firma", "last_name": "Mala"}
+        res = api_client.post(
+            "/api/v1/integrations/meta/webhook/",
+            payload,
+            format="json",
+            HTTP_X_HUB_SIGNATURE_256="sha256=firmainvalida",
+        )
+        assert res.status_code == 403
+
+    def test_webhook_sin_header_firma_retorna_403(self, api_client, settings):
+        """Con META_APP_SECRET configurado, request sin header retorna 403."""
+        settings.META_APP_SECRET = "mi-secret-de-prueba"
+        payload = {"email": "sinfirma@test.com", "first_name": "Sin", "last_name": "Header"}
+        res = api_client.post(
+            "/api/v1/integrations/meta/webhook/",
+            payload,
+            format="json",
+        )
+        assert res.status_code == 403

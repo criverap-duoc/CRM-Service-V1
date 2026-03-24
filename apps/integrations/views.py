@@ -1,5 +1,8 @@
+import hmac
+import hashlib
 import logging
 from django.utils import timezone
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -23,6 +26,39 @@ class WebhookRateThrottle(AnonRateThrottle):
     scope = "webhook"
 
 
+def verify_meta_signature(request) -> bool:
+    """
+    Verifica la firma HMAC-SHA256 del webhook de Meta.
+
+    Meta envía el header X-Hub-Signature-256: sha256=<firma>
+    Calculamos nuestra propia firma con el APP_SECRET y comparamos.
+    Usamos hmac.compare_digest para evitar timing attacks.
+    """
+    app_secret = settings.META_APP_SECRET
+
+    # Si no hay secret configurado, saltamos la validación (solo en dev)
+    if not app_secret:
+        logger.warning("META_APP_SECRET no configurado — saltando validación de firma.")
+        return True
+
+    signature_header = request.headers.get("X-Hub-Signature-256", "")
+    if not signature_header.startswith("sha256="):
+        logger.warning("Webhook sin header X-Hub-Signature-256.")
+        return False
+
+    expected_signature = signature_header[len("sha256="):]
+
+    # Calcular la firma con el body crudo
+    body = request.body
+    computed = hmac.new(
+        app_secret.encode("utf-8"),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(computed, expected_signature)
+
+
 class MetaWebhookView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [WebhookRateThrottle]
@@ -34,6 +70,14 @@ class MetaWebhookView(APIView):
         tags=["Integrations"],
     )
     def post(self, request):
+        # Validar firma de Meta
+        if not verify_meta_signature(request):
+            logger.warning("Webhook con firma inválida rechazado.")
+            return Response(
+                {"error": {"code": "forbidden", "message": "Firma inválida."}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = MetaLeadWebhookSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
