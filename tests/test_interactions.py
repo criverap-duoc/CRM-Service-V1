@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from apps.contacts.models import Contact
 from apps.interactions.models import Interaction
-
+from unittest.mock import patch, MagicMock
 
 @pytest.fixture
 def api_client():
@@ -174,3 +174,83 @@ class TestMetaWebhookFirma:
             format="json",
         )
         assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestSummarizeInteraction:
+    def test_summarize_interaction_no_existe_retorna_404(self, auth_client):
+        res = auth_client.post(
+            "/api/v1/integrations/ai/summarize/",
+            {"interaction_id": 99999},
+            format="json",
+        )
+        assert res.status_code == 404
+        assert res.data["error"]["code"] == "not_found"
+
+    def test_summarize_interaction_ok(self, auth_client, interaction):
+        with patch("apps.integrations.views.OpenAIClient") as MockClient:
+            mock_instance = MagicMock()
+            mock_instance.summarize_interaction.return_value = "Resumen de prueba."
+            MockClient.return_value = mock_instance
+
+            res = auth_client.post(
+                "/api/v1/integrations/ai/summarize/",
+                {"interaction_id": interaction.pk},
+                format="json",
+            )
+
+        assert res.status_code == 200
+        assert res.data["summary"] == "Resumen de prueba."
+
+    def test_summarize_interaction_error_openai_retorna_502(self, auth_client, interaction):
+        with patch("apps.integrations.views.OpenAIClient") as MockClient:
+            mock_instance = MagicMock()
+            mock_instance.summarize_interaction.side_effect = Exception("OpenAI caído")
+            MockClient.return_value = mock_instance
+
+            res = auth_client.post(
+                "/api/v1/integrations/ai/summarize/",
+                {"interaction_id": interaction.pk},
+                format="json",
+            )
+
+        assert res.status_code == 502
+        assert res.data["error"]["code"] == "integration_error"
+
+
+@pytest.mark.django_db
+class TestHealthCheckDB:
+    def test_health_db_caida_retorna_503(self, api_client):
+        from django.db import connection
+        with patch.object(connection, "ensure_connection", side_effect=Exception("DB caída")):
+            res = api_client.get("/health/")
+        assert res.status_code == 503
+        assert res.data["status"] == "degraded"
+        assert res.data["database"] == "unavailable"
+
+
+@pytest.mark.django_db
+class TestMetaWebhookFirmaValida:
+    def test_webhook_firma_valida_retorna_200(self, api_client, settings):
+        import json
+        secret = "mi-secret-de-prueba"
+        settings.META_APP_SECRET = secret
+
+        payload = {"email": "firmaok@test.com", "first_name": "Firma", "last_name": "OK"}
+
+        # Generar firma correcta
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        firma = "sha256=" + hmac.new(
+            secret.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+
+        res = api_client.post(
+            "/api/v1/integrations/meta/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_HUB_SIGNATURE_256=firma,
+        )
+        assert res.status_code == 200
+        assert Contact.objects.filter(email="firmaok@test.com").exists()

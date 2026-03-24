@@ -32,7 +32,7 @@ class HealthCheckView(APIView):
         try:
             connection.ensure_connection()
             db_status = "ok"
-        except OperationalError:
+        except Exception:
             db_status = "unavailable"
 
         healthy = db_status == "ok"
