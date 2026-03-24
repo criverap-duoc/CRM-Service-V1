@@ -1,0 +1,51 @@
+[
+  {
+    "model": "auth.group",
+    "pk": 1,
+    "fields": {
+      "name": "managers"
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+      "username": "manager1",
+      "email": "manager1@crm.cl",
+      "password": "pbkdf2_sha256$720000$test$wD5PFaEOqRPFqxOVMJKQBJR5BDU4g9iMGVfJHRKqJKo=",
+      "is_staff": false,
+      "is_active": true,
+      "is_superuser": false,
+      "groups": [1],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 3,
+    "fields": {
+      "username": "agente1",
+      "email": "agente1@crm.cl",
+      "password": "pbkdf2_sha256$720000$test$wD5PFaEOqRPFqxOVMJKQBJR5BDU4g9iMGVfJHRKqJKo=",
+      "is_staff": false,
+      "is_active": true,
+      "is_superuser": false,
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 4,
+    "fields": {
+      "username": "agente2",
+      "email": "agente2@crm.cl",
+      "password": "pbkdf2_sha256$720000$test$wD5PFaEOqRPFqxOVMJKQBJR5BDU4g9iMGVfJHRKqJKo=",
+      "is_staff": false,
+      "is_active": true,
+      "is_superuser": false,
+      "groups": [],
+      "user_permissions": []
+    }
+  }
+]

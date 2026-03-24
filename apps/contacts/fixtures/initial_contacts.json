@@ -1,0 +1,87 @@
+[
+  {
+    "model": "contacts.contact",
+    "pk": 1,
+    "fields": {
+      "first_name": "María",
+      "last_name": "González",
+      "email": "maria.gonzalez@ejemplo.cl",
+      "phone": "+56912345678",
+      "company": "Empresa Demo SpA",
+      "status": "customer",
+      "source": "meta_ads",
+      "assigned_to": 3,
+      "notes": "Cliente desde 2024, alto valor.",
+      "created_at": "2024-01-15T10:00:00-03:00",
+      "updated_at": "2024-01-15T10:00:00-03:00"
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 2,
+    "fields": {
+      "first_name": "Carlos",
+      "last_name": "Pérez",
+      "email": "carlos.perez@ejemplo.cl",
+      "phone": "+56987654321",
+      "company": "Startup XYZ Ltda",
+      "status": "prospect",
+      "source": "referral",
+      "assigned_to": 3,
+      "notes": "Interesado en plan enterprise.",
+      "created_at": "2024-02-20T14:30:00-03:00",
+      "updated_at": "2024-02-20T14:30:00-03:00"
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 3,
+    "fields": {
+      "first_name": "Ana",
+      "last_name": "Martínez",
+      "email": "ana.martinez@ejemplo.cl",
+      "phone": "+56911111111",
+      "company": "Consultora ABC",
+      "status": "lead",
+      "source": "organic",
+      "assigned_to": 4,
+      "notes": "",
+      "created_at": "2024-03-10T09:00:00-03:00",
+      "updated_at": "2024-03-10T09:00:00-03:00"
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 4,
+    "fields": {
+      "first_name": "Diego",
+      "last_name": "Rojas",
+      "email": "diego.rojas@ejemplo.cl",
+      "phone": "+56922222222",
+      "company": "",
+      "status": "lead",
+      "source": "meta_ads",
+      "assigned_to": 4,
+      "notes": "Llegó por campaña de Facebook.",
+      "created_at": "2024-03-15T11:00:00-03:00",
+      "updated_at": "2024-03-15T11:00:00-03:00"
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 5,
+    "fields": {
+      "first_name": "Valentina",
+      "last_name": "Torres",
+      "email": "valentina.torres@ejemplo.cl",
+      "phone": "+56933333333",
+      "company": "Retail Sur SA",
+      "status": "churned",
+      "source": "manual",
+      "assigned_to": 3,
+      "notes": "No renovó contrato en diciembre.",
+      "created_at": "2023-12-01T08:00:00-03:00",
+      "updated_at": "2024-01-01T08:00:00-03:00"
+    }
+  }
+]

@@ -1,0 +1,66 @@
+[
+  {
+    "model": "interactions.interaction",
+    "pk": 1,
+    "fields": {
+      "contact": 1,
+      "agent": 3,
+      "channel": "email",
+      "direction": "inbound",
+      "subject": "Consulta sobre facturación",
+      "body": "Hola, necesito una copia de mi última factura.",
+      "external_id": "",
+      "metadata": {},
+      "occurred_at": "2024-01-20T10:00:00-03:00",
+      "created_at": "2024-01-20T10:00:00-03:00"
+    }
+  },
+  {
+    "model": "interactions.interaction",
+    "pk": 2,
+    "fields": {
+      "contact": 1,
+      "agent": 3,
+      "channel": "phone",
+      "direction": "outbound",
+      "subject": "Seguimiento renovación",
+      "body": "Llamada para ofrecer renovación anual con descuento.",
+      "external_id": "",
+      "metadata": {},
+      "occurred_at": "2024-02-01T15:30:00-03:00",
+      "created_at": "2024-02-01T15:30:00-03:00"
+    }
+  },
+  {
+    "model": "interactions.interaction",
+    "pk": 3,
+    "fields": {
+      "contact": 2,
+      "agent": null,
+      "channel": "chat",
+      "direction": "inbound",
+      "subject": "Consulta por chatbot",
+      "body": "¿Cuánto cuesta el plan enterprise?",
+      "external_id": "chatbot_session_001",
+      "metadata": {"bot": "wizz-bot", "session": "001"},
+      "occurred_at": "2024-02-21T09:00:00-03:00",
+      "created_at": "2024-02-21T09:00:00-03:00"
+    }
+  },
+  {
+    "model": "interactions.interaction",
+    "pk": 4,
+    "fields": {
+      "contact": 3,
+      "agent": 4,
+      "channel": "whatsapp",
+      "direction": "inbound",
+      "subject": "Primer contacto",
+      "body": "Hola, vi su anuncio y quiero más información.",
+      "external_id": "",
+      "metadata": {},
+      "occurred_at": "2024-03-10T10:00:00-03:00",
+      "created_at": "2024-03-10T10:00:00-03:00"
+    }
+  }
+]
